@@ -223,8 +223,13 @@
           if (isResizing) return;
           e.preventDefault();
           const event = e.type === "touchstart" ? e.touches[0] : e;
-          offsetX = event.clientX - elem.offsetLeft;
-          offsetY = event.clientY - elem.offsetTop;
+
+          const container = imageContainer.getBoundingClientRect();
+          const elemRect = elem.getBoundingClientRect();
+
+          offsetX = event.clientX - elemRect.left;
+          offsetY = event.clientY - elemRect.top;
+
           isDragging = true;
 
           document.addEventListener("mousemove", drag);
