@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-p" />
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css"
@@ -14,13 +14,14 @@
         border: 2px dashed #ccc;
         background-color: #f8f9fa;
         max-width: 100%;
-        align-items: center;
       }
+
       #imagePreview {
         display: none;
         width: 100%;
         height: auto;
       }
+
       .draggable {
         display: none;
         position: absolute;
@@ -33,27 +34,32 @@
         user-select: none;
         font-family: "Sarabun", sans-serif;
       }
+
       .draggable:active {
         cursor: grabbing;
       }
+
+      #signature-overlay {
+        padding: 0;
+        background: transparent;
+        border: 1px dashed blue;
+        overflow: hidden;
+      }
+
+      .resize-handle {
+        position: absolute;
+        width: 15px;
+        height: 15px;
+        right: 0;
+        bottom: 0;
+        background: #007bff;
+        cursor: se-resize;
+        z-index: 10;
+      }
+
       #signature-pad-container {
         border: 1px solid black;
         touch-action: none;
-      }
-      .resizable {
-        position: absolute;
-        resize: none;
-        overflow: hidden;
-      }
-      .resize-handle {
-        position: absolute;
-        width: 10px;
-        height: 10px;
-        background: #007bff;
-        bottom: 0;
-        right: 0;
-        cursor: se-resize;
-        z-index: 10s;
       }
     </style>
   </head>
@@ -64,30 +70,16 @@
         <div class="row g-3 mb-3">
           <div class="col-md-6">
             <label for="fullname" class="form-label">ชื่อ นามสกุล</label>
-            <input
-              type="text"
-              class="form-control"
-              id="fullname"
-              placeholder="นายชื่อ นามสกุล"
-              required
-            />
+            <input type="text" class="form-control" id="fullname" required />
           </div>
           <div class="col-md-6">
             <label for="telephone" class="form-label">เบอร์โทร</label>
-            <input
-              type="tel"
-              class="form-control"
-              id="telephone"
-              placeholder="0987654321"
-              required
-            />
+            <input type="tel" class="form-control" id="telephone" required />
           </div>
         </div>
 
         <div class="mb-3">
-          <label for="imageInput" class="form-label"
-            >เลือกรูปภาพที่ต้องการเซ็น</label
-          >
+          <label for="imageInput" class="form-label">เลือกรูปภาพ</label>
           <input
             class="form-control"
             type="file"
@@ -117,13 +109,7 @@
           <div
             id="signature-overlay"
             class="draggable"
-            style="
-              top: 100px;
-              left: 20px;
-              padding: 0;
-              background: transparent;
-              border: 1px dashed blue;
-            "
+            style="top: 100px; left: 20px; width: 150px; height: 80px"
           >
             <canvas id="signatureCanvas"></canvas>
             <div class="resize-handle"></div>
@@ -145,18 +131,9 @@
         </button>
         <button type="submit" class="btn btn-success">บันทึก</button>
       </form>
-      <div id="loading" class="mt-3" style="display: none">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Loading...</span>
-        </div>
-        <span class="ms-2">กำลังบันทึก...</span>
-      </div>
-      <div id="result" class="mt-3"></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
-
     <script>
       const imageInput = document.getElementById("imageInput");
       const imagePreview = document.getElementById("imagePreview");
@@ -166,17 +143,13 @@
       const fullnameOverlay = document.getElementById("fullname-overlay");
       const telephoneOverlay = document.getElementById("telephone-overlay");
       const signatureOverlay = document.getElementById("signature-overlay");
-      const mainForm = document.getElementById("mainForm");
-      const resultDiv = document.getElementById("result");
-      const loadingDiv = document.getElementById("loading");
-
-      const signaturePadCanvas = document.getElementById("signaturePadElement");
-      const signaturePad = new SignaturePad(signaturePadCanvas, {});
-
       const overlayCanvas = document.getElementById("signatureCanvas");
       const overlayCtx = overlayCanvas.getContext("2d");
 
-      const sigHandle = signatureOverlay.querySelector(".resize-handle");
+      const signaturePadCanvas = document.getElementById("signaturePadElement");
+      const signaturePad = new SignaturePad(signaturePadCanvas);
+
+      let isResizing = false;
 
       function resizeCanvas() {
         const ratio = Math.max(window.devicePixelRatio || 1, 1);
@@ -188,46 +161,10 @@
       window.addEventListener("resize", resizeCanvas);
       resizeCanvas();
 
-      sigHandle.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const startWidth = signatureOverlay.offsetWidth;
-        const startHeight = signatureOverlay.offsetHeight;
-
-        function doDrag(e) {
-          const newWidth = Math.max(50, startWidth + (e.clientX - startX));
-          const newHeight = Math.max(30, startHeight + (e.clientY - startY));
-          signatureOverlay.style.width = newWidth + "px";
-          signatureOverlay.style.height = newHeight + "px";
-          overlayCanvas.width = newWidth;
-          overlayCanvas.height = newHeight;
-
-          overlayCtx.clearRect(0, 0, newWidth, newHeight);
-          overlayCtx.drawImage(signaturePad.canvas, 0, 0, newWidth, newHeight);
-        }
-
-        function stopDrag() {
-          document.removeEventListener("mousemove", doDrag);
-          document.removeEventListener("mouseup", stopDrag);
-        }
-
-        document.addEventListener("mousemove", doDrag);
-        document.addEventListener("mouseup", stopDrag);
-      });
-
       signaturePad.addEventListener("endStroke", () => {
         const sourceCanvas = signaturePad.canvas;
-        const sourceWidth = sourceCanvas.width;
-        const sourceHeight = sourceCanvas.height;
-
-        const scaleFactor = 0.5;
-
-        const newWidth = sourceWidth * scaleFactor;
-        const newHeight = sourceHeight * scaleFactor;
-
-        signatureOverlay.style.width = newWidth + "px";
-        signatureOverlay.style.height = newHeight + "px";
+        const newWidth = signatureOverlay.offsetWidth;
+        const newHeight = signatureOverlay.offsetHeight;
 
         overlayCanvas.width = newWidth;
         overlayCanvas.height = newHeight;
@@ -241,14 +178,13 @@
         overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
       });
 
-      fullnameInput.addEventListener(
-        "input",
-        (e) => (fullnameOverlay.textContent = e.target.value || "ชื่อ นามสกุล")
-      );
-      telephoneInput.addEventListener(
-        "input",
-        (e) => (telephoneOverlay.textContent = e.target.value || "0987654321")
-      );
+      fullnameInput.addEventListener("input", (e) => {
+        fullnameOverlay.textContent = e.target.value || "ชื่อ นามสกุล";
+      });
+
+      telephoneInput.addEventListener("input", (e) => {
+        telephoneOverlay.textContent = e.target.value || "0987654321";
+      });
 
       let originalImage = null;
       imageInput.addEventListener("change", function () {
@@ -263,12 +199,10 @@
               const height = imagePreview.offsetHeight;
               imageContainer.style.width = width + "px";
               imageContainer.style.height = height + "px";
+              document.querySelectorAll(".draggable").forEach((el) => {
+                el.style.display = "block";
+              });
             };
-
-            document.querySelectorAll(".draggable").forEach((el) => {
-              el.style.display = "block";
-            });
-
             originalImage = new Image();
             originalImage.src = e.target.result;
           };
@@ -285,12 +219,12 @@
         elem.addEventListener("touchstart", startDrag, { passive: false });
 
         function startDrag(e) {
+          if (isResizing) return;
           e.preventDefault();
-          isDragging = true;
           const event = e.type === "touchstart" ? e.touches[0] : e;
-          const rect = elem.getBoundingClientRect();
-          offsetX = event.clientX - rect.left;
-          offsetY = event.clientY - rect.top;
+          offsetX = event.clientX - elem.offsetLeft;
+          offsetY = event.clientY - elem.offsetTop;
+          isDragging = true;
 
           document.addEventListener("mousemove", drag);
           document.addEventListener("mouseup", endDrag);
@@ -299,7 +233,7 @@
         }
 
         function drag(e) {
-          if (!isDragging) return;
+          if (!isDragging || isResizing) return;
           const event = e.type === "touchmove" ? e.touches[0] : e;
           const container = imageContainer.getBoundingClientRect();
 
@@ -329,75 +263,37 @@
         (id) => makeDraggable(document.getElementById(id))
       );
 
-      mainForm.addEventListener("submit", async (e) => {
+      // Handle resize
+      const sigHandle = signatureOverlay.querySelector(".resize-handle");
+      sigHandle.addEventListener("mousedown", (e) => {
         e.preventDefault();
-        if (!originalImage || !originalImage.complete) {
-          alert("กรุณาเลือกรูปภาพก่อน");
-          return;
+        e.stopPropagation();
+        isResizing = true;
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startWidth = signatureOverlay.offsetWidth;
+        const startHeight = signatureOverlay.offsetHeight;
+
+        function doDrag(e) {
+          const newWidth = Math.max(50, startWidth + (e.clientX - startX));
+          const newHeight = Math.max(30, startHeight + (e.clientY - startY));
+          signatureOverlay.style.width = newWidth + "px";
+          signatureOverlay.style.height = newHeight + "px";
+          overlayCanvas.width = newWidth;
+          overlayCanvas.height = newHeight;
+          overlayCtx.clearRect(0, 0, newWidth, newHeight);
+          overlayCtx.drawImage(signaturePad.canvas, 0, 0, newWidth, newHeight);
         }
-        if (signaturePad.isEmpty()) {
-          alert("กรุณาวาดลายเซ็น");
-          return;
+
+        function stopDrag() {
+          isResizing = false;
+          document.removeEventListener("mousemove", doDrag);
+          document.removeEventListener("mouseup", stopDrag);
         }
 
-        loadingDiv.style.display = "block";
-        resultDiv.innerHTML = "";
-
-        const mergeCanvas = document.createElement("canvas");
-        const mergeCtx = mergeCanvas.getContext("2d");
-
-        mergeCanvas.width = imagePreview.naturalWidth;
-        mergeCanvas.height = imagePreview.naturalHeight;
-
-        const scaleX = imagePreview.naturalWidth / imagePreview.offsetWidth;
-        const scaleY = imagePreview.naturalHeight / imagePreview.offsetHeight;
-
-        mergeCtx.drawImage(originalImage, 0, 0);
-
-        mergeCtx.font = `${16 * scaleX}px 'Sarabun', sans-serif`;
-        mergeCtx.fillStyle = "black";
-        mergeCtx.textBaseline = "top";
-
-        const fullnameRect = fullnameOverlay.getBoundingClientRect();
-        const containerRect = imageContainer.getBoundingClientRect();
-
-        const fullnameX = (fullnameRect.left - containerRect.left) * scaleX;
-        const fullnameY = (fullnameRect.top - containerRect.top) * scaleY;
-        mergeCtx.fillText(fullnameOverlay.textContent, fullnameX, fullnameY);
-
-        const telRect = telephoneOverlay.getBoundingClientRect();
-        const telX = (telRect.left - containerRect.left) * scaleX;
-        const telY = (telRect.top - containerRect.top) * scaleY;
-        mergeCtx.fillText(telephoneOverlay.textContent, telX, telY);
-
-        const sigRect = signatureOverlay.getBoundingClientRect();
-        const sigX = (sigRect.left - containerRect.left) * scaleX;
-        const sigY = (sigRect.top - containerRect.top) * scaleY;
-        mergeCtx.drawImage(
-          overlayCanvas,
-          sigX,
-          sigY,
-          signatureOverlay.offsetWidth * scaleX,
-          signatureOverlay.offsetHeight * scaleY
-        );
-
-        const finalImageData = mergeCanvas.toDataURL("image/jpeg", 0.9);
-        const fileName = `signed_${Date.now()}.jpg`;
-
-        google.script.run
-          .withSuccessHandler((response) => {
-            loadingDiv.style.display = "none";
-            if (response.success) {
-              resultDiv.innerHTML = `<div class="alert alert-success">บันทึกสำเร็จ! <a href="${response.url}" target="_blank">เปิดไฟล์</a></div>`;
-            } else {
-              resultDiv.innerHTML = `<div class="alert alert-danger">เกิดข้อผิดพลาด: ${response.message}</div>`;
-            }
-          })
-          .withFailureHandler((error) => {
-            loadingDiv.style.display = "none";
-            resultDiv.innerHTML = `<div class="alert alert-danger">การเชื่อมต่อล้มเหลว: ${error.message}</div>`;
-          })
-          .saveImage(finalImageData, fileName);
+        document.addEventListener("mousemove", doDrag);
+        document.addEventListener("mouseup", stopDrag);
       });
     </script>
   </body>
