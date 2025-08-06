@@ -2,24 +2,39 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
     <style>
+      body {
+        font-family: "Sarabun", sans-serif;
+        padding-bottom: 60px;
+      }
+
+      .container {
+        max-width: 100%;
+        padding: 1rem;
+      }
+
       #imageContainer {
         position: relative;
-        display: inline-block;
+        display: block;
         border: 2px dashed #ccc;
         background-color: #f8f9fa;
-        max-width: 100%;
+        width: 100%;
       }
 
       #imagePreview {
         display: none;
         width: 100%;
         height: auto;
+        max-height: 60vh;
+        object-fit: contain;
       }
 
       .draggable {
@@ -28,11 +43,12 @@
         cursor: grab;
         touch-action: none;
         background-color: rgba(255, 255, 255, 0.8);
-        padding: 5px 10px;
+        padding: 4px 8px;
         border: 1px solid #ddd;
         border-radius: 5px;
         user-select: none;
-        font-family: "Sarabun", sans-serif;
+        font-size: 14px;
+        max-width: 90%;
       }
 
       .draggable:active {
@@ -48,11 +64,12 @@
 
       .resize-handle {
         position: absolute;
-        width: 15px;
-        height: 15px;
+        width: 12px;
+        height: 12px;
         right: 0;
         bottom: 0;
-        background: #007bff;
+        background: #0d6efd;
+        border-radius: 3px;
         cursor: se-resize;
         z-index: 10;
       }
@@ -60,24 +77,49 @@
       #signature-pad-container {
         border: 1px solid black;
         touch-action: none;
+        height: 200px;
+      }
+
+      input,
+      button,
+      canvas {
+        max-width: 100%;
+      }
+
+      @media (max-width: 576px) {
+        h3 {
+          font-size: 1.25rem;
+        }
+
+        label {
+          font-size: 0.9rem;
+        }
+
+        .form-control,
+        .btn {
+          font-size: 0.9rem;
+          padding: 0.375rem 0.5rem;
+        }
+
+        .resize-handle {
+          width: 10px;
+          height: 10px;
+        }
       }
     </style>
   </head>
   <body>
-    <div class="container p-3">
-      <h3>Image Signature App</h3>
+    <div class="container">
+      <h3 class="mb-3">Image Signature App</h3>
       <form id="mainForm">
-        <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <label for="fullname" class="form-label">ชื่อ นามสกุล</label>
-            <input type="text" class="form-control" id="fullname" required />
-          </div>
-          <div class="col-md-6">
-            <label for="telephone" class="form-label">เบอร์โทร</label>
-            <input type="tel" class="form-control" id="telephone" required />
-          </div>
+        <div class="mb-3">
+          <label for="fullname" class="form-label">ชื่อ นามสกุล</label>
+          <input type="text" class="form-control" id="fullname" required />
         </div>
-
+        <div class="mb-3">
+          <label for="telephone" class="form-label">เบอร์โทร</label>
+          <input type="tel" class="form-control" id="telephone" required />
+        </div>
         <div class="mb-3">
           <label for="imageInput" class="form-label">เลือกรูปภาพ</label>
           <input
@@ -88,8 +130,9 @@
             required
           />
         </div>
-
-        <p>ลากข้อความและลายเซ็นไปวางในตำแหน่งที่ต้องการ</p>
+        <p class="small text-muted">
+          ลากข้อความและลายเซ็นไปวางในตำแหน่งที่ต้องการ
+        </p>
         <div id="imageContainer" class="mb-3">
           <img id="imagePreview" src="#" alt="Image Preview" />
           <div
@@ -115,21 +158,21 @@
             <div class="resize-handle"></div>
           </div>
         </div>
-
         <div class="mb-3">
           <label class="form-label">วาดลายเซ็นในกรอบด้านล่างนี้</label>
           <div id="signature-pad-container">
             <canvas
               id="signaturePadElement"
-              style="width: 100%; height: 200px"
+              style="width: 100%; height: 100%"
             ></canvas>
           </div>
         </div>
-
-        <button id="clearButton" type="button" class="btn btn-warning">
-          ล้างลายเซ็น
-        </button>
-        <button type="submit" class="btn btn-success">บันทึก</button>
+        <div class="d-flex gap-2">
+          <button id="clearButton" type="button" class="btn btn-warning w-50">
+            ล้างลายเซ็น
+          </button>
+          <button type="submit" class="btn btn-success w-50">บันทึก</button>
+        </div>
       </form>
     </div>
 
@@ -151,8 +194,9 @@
       const signaturePad = new SignaturePad(signaturePadCanvas);
 
       let isResizing = false;
-
-      let croppedSignature = null;
+      let croppedSignatureImage = null;
+      let scaleX = 1,
+        scaleY = 1;
 
       function resizeCanvas() {
         const ratio = Math.max(window.devicePixelRatio || 1, 1);
@@ -168,10 +212,8 @@
         const sourceCanvas = signaturePad.canvas;
         const ctx = sourceCanvas.getContext("2d");
         const { width, height } = sourceCanvas;
-
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
-
         let minX = width,
           minY = height,
           maxX = 0,
@@ -189,7 +231,6 @@
             }
           }
         }
-
         if (maxX <= minX || maxY <= minY) return;
 
         const margin = 10;
@@ -201,12 +242,16 @@
         const croppedWidth = maxX - minX;
         const croppedHeight = maxY - minY;
 
-        signatureOverlay.style.width = croppedWidth + "px";
-        signatureOverlay.style.height = croppedHeight + "px";
+        const scaledWidth = croppedWidth / scaleX;
+        const scaledHeight = croppedHeight / scaleY;
 
-        overlayCanvas.width = croppedWidth;
-        overlayCanvas.height = croppedHeight;
-        overlayCtx.clearRect(0, 0, croppedWidth, croppedHeight);
+        signatureOverlay.style.width = scaledWidth + "px";
+        signatureOverlay.style.height = scaledHeight + "px";
+
+        overlayCanvas.width = scaledWidth;
+        overlayCanvas.height = scaledHeight;
+
+        overlayCtx.clearRect(0, 0, scaledWidth, scaledHeight);
         overlayCtx.drawImage(
           sourceCanvas,
           minX,
@@ -215,8 +260,8 @@
           croppedHeight,
           0,
           0,
-          croppedWidth,
-          croppedHeight
+          scaledWidth,
+          scaledHeight
         );
 
         croppedSignatureImage = new Image();
@@ -231,7 +276,6 @@
       fullnameInput.addEventListener("input", (e) => {
         fullnameOverlay.textContent = e.target.value || "ชื่อ นามสกุล";
       });
-
       telephoneInput.addEventListener("input", (e) => {
         telephoneOverlay.textContent = e.target.value || "0987654321";
       });
@@ -249,6 +293,8 @@
               const height = imagePreview.offsetHeight;
               imageContainer.style.width = width + "px";
               imageContainer.style.height = height + "px";
+              scaleX = imagePreview.naturalWidth / imagePreview.offsetWidth;
+              scaleY = imagePreview.naturalHeight / imagePreview.offsetHeight;
               document.querySelectorAll(".draggable").forEach((el) => {
                 el.style.display = "block";
               });
@@ -332,13 +378,10 @@
         function doDrag(e) {
           const newWidth = Math.max(50, startWidth + (e.clientX - startX));
           const newHeight = Math.max(30, startHeight + (e.clientY - startY));
-
           signatureOverlay.style.width = newWidth + "px";
           signatureOverlay.style.height = newHeight + "px";
-
           overlayCanvas.width = newWidth;
           overlayCanvas.height = newHeight;
-
           if (croppedSignatureImage) {
             overlayCtx.clearRect(0, 0, newWidth, newHeight);
             overlayCtx.drawImage(
